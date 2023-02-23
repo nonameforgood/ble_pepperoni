@@ -95,7 +95,6 @@
     <folder Name="Application">
       <file file_name="./../config/sdk_config.h" />
       <file file_name="../main.cpp" />
-      <file file_name="../readwriteints.cpp" />
       <file file_name="../datacollector.cpp" />
     </folder>
     <folder Name="nRF_Segger_RTT">
