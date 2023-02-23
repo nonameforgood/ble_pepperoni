@@ -97,7 +97,6 @@
       <file file_name="../main.cpp" />
       <file file_name="../readwriteints.cpp" />
       <file file_name="../datacollector.cpp" />
-      <file file_name="../led.cpp" />
     </folder>
     <folder Name="nRF_Segger_RTT">
       <file file_name="$(StudioDir)/samples/SEGGER_RTT_printf.c" />
