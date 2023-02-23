@@ -1,0 +1,20 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../../nRF5_SDK_12.3.0_d7731ad/components"
+		},
+		{
+			"path": "../../nRF5_SDK_12.3.0_d7731ad/examples"
+		},
+		{
+			"path": "../../../mvp-main"
+		},
+		{
+			"path": "gj/src/gj"
+		}
+	],
+	"settings": {}
+}
