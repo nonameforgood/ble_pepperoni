@@ -275,17 +275,13 @@ def ReadAdvertData(instance):
     b = b[65535]
 
     unixtime = 0
-    temps = [0, 0, 0]
 
-    if len(b) == 9:
+    #AddLog("Advert len {0} data {1}".format(len(b), b));
+
+    if b[0] == 0x05 and b[1] == 0xff and len(b) == 6:
       unixtime = b[2] | (b[3] << 8) | (b[4] << 16) | (b[5] << 24) 
-      temps[0] = b[6] / 10.0 + 15
-      temps[1] = b[7] / 10.0 + 15
-      temps[2] = b[8] / 10.0 + 15
 
-      return [unixtime, temps[0], temps[1], temps[2]]
-
-  return None
+  return unixtime
 
 async def ReadRecordedSessions(instance):
   exceptionCount = 0
@@ -294,26 +290,26 @@ async def ReadRecordedSessions(instance):
           break
       try:
           
-          nr = datetime.fromtimestamp(instance.newestSessionTime).strftime('%Y-%m-%d %H:%M:%S')
-          AddLog("Newest session:" + nr + "(" + str(instance.newestSessionTime) + ")")
+          #nr = datetime.fromtimestamp(instance.newestSessionTime).strftime('%Y-%m-%d %H:%M:%S')
+          #AddLog("Newest session:" + nr + "(" + str(instance.newestSessionTime) + ")")
 
-          _4Hours = 60 * 60 * 4
-          _1Hours = 60 * 60 * 1
+          #_4Hours = 60 * 60 * 4
+          #_1Hours = 60 * 60 * 1
+
+          #elapsed = GetUnixtime() - instance.newestSessionTime
+          #readElapsed = time.time() - instance.lastSessionRead
+
+          #if elapsed >= _4Hours and readElapsed >= _1Hours:
+          AddLog("Connecting to device...")
           
-          elapsed = GetUnixtime() - instance.newestSessionTime
-          readElapsed = time.time() - instance.lastSessionRead
-
-          if elapsed >= _4Hours and readElapsed >= _1Hours:
-            AddLog("Connecting to device...")
-            
-            async with BleakClient(instance.device) as client:
-              await client.is_connected()
-              AddLog("Connected")
-              #todo: set uc module time
-              await ReadValues(instance, client)
-              await client.disconnect()
-              client = None
-              instance.lastSessionRead = time.time()
+          async with BleakClient(instance.device) as client:
+            await client.is_connected()
+            AddLog("Connected")
+            #todo: set uc module time
+            await ReadValues(instance, client)
+            await client.disconnect()
+            client = None
+            #instance.lastSessionRead = time.time()
 
 
             
@@ -378,42 +374,24 @@ async def ReadDevice(instance, name:str):
             await FindDevice(instance, name)
 
           if instance.device is not None:
-            
-            await ReadRecordedSessions(instance)
-            UploadReadings(instance)
+            advertSessionTime = ReadAdvertData(instance)
+            AddLog("Advertized session time {0} Last Read Session time {1}".format(advertSessionTime, instance.newestSessionTime))
+
+            if advertSessionTime != 0 and advertSessionTime != instance.newestSessionTime:
+              await ReadRecordedSessions(instance)
+              UploadReadings(instance)
 
             instance.device = None  #advert data not refreshed otherwise
 
-            timeout = 60 * 30        #sleep 30 minutes by default
 
-            if instance.rtTime != 0:
-              AddLog("RTTime:" + str(instance.rtTime))
-              nextUpdate = instance.rtTime + 15 * 60
-              nextUpdate += 20  #add time for actual readings
-              timeout = nextUpdate - GetUnixtime()
-            
-            sessionLength = 16 * 900
-            nextExpectedDataTime = GetUnixtime() - instance.newestSessionTime
-            nextExpectedDataTime += sessionLength
-            nextExpectedDataTime -= nextExpectedDataTime % sessionLength
-            nextExpectedDataTime += instance.newestSessionTime
+          timeout = 60 * 15        #sleep 15 minutes
 
-            #add a delay so that the data query happens after new data is available
-            nextExpectedDataTime += 60 * 5
-
-            nextExpectedTimeout = nextExpectedDataTime - GetUnixtime()
-
-            AddLog("nextExpectedDataTime {0} nextExpectedTimeout {1}".format(nextExpectedDataTime, nextExpectedTimeout))
-
-            timeout = max(timeout, nextExpectedTimeout)
-            timeout = max(timeout, 60*60)
-
-            nr = datetime.fromtimestamp(nextExpectedDataTime).strftime('%Y-%m-%d %H:%M:%S')
-            AddLog("Next reading will occur at {0}".format(nr))
+          nr = datetime.fromtimestamp(GetUnixtime() + timeout).strftime('%Y-%m-%d %H:%M:%S')
+          AddLog("Next read will occur at {0}".format(nr))
+        
+          errors = 0
           
-            errors = 0
-            
-            await asyncio.sleep(timeout)    
+          await asyncio.sleep(timeout)    
 
       except Exception as e:
           logger = logging.getLogger(__name__)
@@ -440,9 +418,7 @@ async def run():
     
     instance = type('', (), {})()
     instance.newestSessionTime = 0
-    instance.lastSessionRead = 0
     instance.oldestSessionTime = 0
-    instance.rtTime = 0
     instance.server = "https://devtest.michelvachon.com"
     instance.readingsFilepath = script_dir+"/readings.txt"
     instance.newReadingsFilepath = script_dir+"/newreadings.txt"
@@ -454,7 +430,7 @@ async def run():
       mod = argv[1]
       
       if mod == "peppeX":
-        instance.server = "http://127.0.0.1"
+        AddLog("Dev mode")
         instance.readingsFilepath = script_dir+"/readingsB.txt"
         instance.newReadingsFilepath = script_dir+"/newreadingsB.txt"
         instance.debug = True

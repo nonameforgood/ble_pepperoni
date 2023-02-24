@@ -35,7 +35,7 @@ DEFINE_CONFIG_INT32(wheelpinpull, wheelpinpull, -1);
 DEFINE_CONFIG_INT32(wheeldbg, wheeldbg, 0);
 DEFINE_CONFIG_INT32(wheeldataid, wheeldataid, 0);
 
-const uint32_t period = 1;//15*60;
+const uint32_t period = 15*60;
 
 static void power_manage(void)
 {
@@ -116,11 +116,13 @@ void OnWheelTurn(DigitalSensor &sensor, uint32_t val)
       if (isSessionExpired)
       {
         const int32_t sessionTime = GetSessionTime(*turnData.m_collector);
-        s_manufData.m_lastSessionUnixtime = sessionTime;
-        RefreshManufData();
-
+        
         WriteDataSession(*turnData.m_collector);
         InitDataSession(*turnData.m_collector, GetUnixtime());
+
+        //update manuf unixtime after file write
+        s_manufData.m_lastSessionUnixtime = sessionTime;
+        RefreshManufData();
       }
 
       turnData.m_turnCount = 0;
@@ -340,5 +342,4 @@ int main(void)
       }
   }
 }
-
 
