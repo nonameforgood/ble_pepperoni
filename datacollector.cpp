@@ -223,6 +223,14 @@ uint32_t GetBlockEndTime(const DataCollector &collector)
   return dataSession.m_time + DataSession::MaxData * dataSession.m_period;
 }
 
+int32_t GetSessionTime(const DataCollector &collector)
+{
+  const DataSession &dataSession = collector.m_dataSession;
+
+  return dataSession.m_time;
+}
+
+
 void WriteDebugData(DataCollector &collector)
 {
   DataSession session;

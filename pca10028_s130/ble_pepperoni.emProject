@@ -218,7 +218,7 @@
       gcc_optimization_level="Level 2 for size"
       linker_output_format="bin"
       linker_section_placement_macros="FLASH_PH_START=0x0;FLASH_PH_SIZE=0x40000;RAM_PH_START=0x20000000;RAM_PH_SIZE=0x4000;FLASH_START=0x1c000;FLASH_SIZE=0x10000;RAM_START=0x20002000;RAM_SIZE=0x2000"
-      post_build_command="cp $(OutDir)/$(ProjectName)_pa.bin $(ProjectDir)/../bins/" />
+      post_build_command="mkdir -p $(ProjectDir)/../bins/ &amp;&amp; cp $(OutDir)/$(ProjectName)_pa.bin $(ProjectDir)/../bins/" />
     <configuration
       Name="ReleasePartitionB"
       build_object_file_name="$(IntDir)/$(InputName)$(OBJ)"
@@ -229,7 +229,7 @@
       gcc_dwarf_version="dwarf-4"
       gcc_optimization_level="Level 2 for size"
       linker_section_placement_macros="FLASH_PH_START=0x0;FLASH_PH_SIZE=0x40000;RAM_PH_START=0x20000000;RAM_PH_SIZE=0x4000;FLASH_START=0x2d000;FLASH_SIZE=0x10000;RAM_START=0x20002000;RAM_SIZE=0x2000"
-      post_build_command="cp $(OutDir)/$(ProjectName)_pb.bin $(ProjectDir)/../bins/" />
+      post_build_command="mkdir -p $(ProjectDir)/../bins/ &amp;&amp; cp $(OutDir)/$(ProjectName)_pb.bin $(ProjectDir)/../bins/" />
   </project>
   <configuration
     Name="Release"

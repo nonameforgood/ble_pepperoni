@@ -35,7 +35,7 @@ DEFINE_CONFIG_INT32(wheelpinpull, wheelpinpull, -1);
 DEFINE_CONFIG_INT32(wheeldbg, wheeldbg, 0);
 DEFINE_CONFIG_INT32(wheeldataid, wheeldataid, 0);
 
-const uint32_t period = 15*60;
+const uint32_t period = 1;//15*60;
 
 static void power_manage(void)
 {
@@ -68,6 +68,18 @@ void Command_ReadBattery()
   battSensor.Sample();
 }
 
+struct ManufData
+{
+  uint32_t m_lastSessionUnixtime;
+};
+
+ManufData s_manufData = {};
+
+void RefreshManufData()
+{
+  bleServer.SetAdvManufData(&s_manufData, sizeof(s_manufData));
+}
+
 struct TurnData
 {
   TurnData();
@@ -95,8 +107,7 @@ void OnWheelTurn(DigitalSensor &sensor, uint32_t val)
   {
     if (turnData.m_turnCount)
     {
-
-     const bool dataAdded = AddData(*turnData.m_collector, turnData.m_beginTime, turnData.m_turnCount);
+      const bool dataAdded = AddData(*turnData.m_collector, turnData.m_beginTime, turnData.m_turnCount);
       
       SER_COND(!dataAdded, "ERROR:Turn data not added\n\r");
       SER_COND(dataAdded,  "wheel turn data added:@%d, count:%d\n\r", turnData.m_beginTime, turnData.m_turnCount);
@@ -104,8 +115,12 @@ void OnWheelTurn(DigitalSensor &sensor, uint32_t val)
       const bool isSessionExpired = IsExpired(*turnData.m_collector);
       if (isSessionExpired)
       {
-          WriteDataSession(*turnData.m_collector);
-          InitDataSession(*turnData.m_collector, GetUnixtime());
+        const int32_t sessionTime = GetSessionTime(*turnData.m_collector);
+        s_manufData.m_lastSessionUnixtime = sessionTime;
+        RefreshManufData();
+
+        WriteDataSession(*turnData.m_collector);
+        InitDataSession(*turnData.m_collector, GetUnixtime());
       }
 
       turnData.m_turnCount = 0;
@@ -244,6 +259,8 @@ void Command_turndata(const char *command)
   }
   else if (subCmd == "writedbg")
   {
+    s_manufData.m_lastSessionUnixtime = GetUnixtime();
+    RefreshManufData();
     WriteDebugData(*turnData.m_collector);
     SER("Debug Data written\n\r");
   }
@@ -305,8 +322,9 @@ int main(void)
   //note:must initialize after InitFStorage()
   bleServer.Init(hostName, otaInit);
 
+  bleServer.SetAdvManufData(&s_manufData, sizeof(s_manufData));
+  
   SER_COND(period != 60 * 15, "****PERIOD****\n\r");
-  //GJEventManager->Add(Command_ReadBattery);
 
   for (;;)
   {
