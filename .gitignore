@@ -1,6 +1,6 @@
 .DS_store
 .emSession
-.jlink
+*.jlink
 Output
 pool_temps.out.poolB.txt
 pool_temps.pool.txt
