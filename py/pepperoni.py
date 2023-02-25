@@ -16,7 +16,14 @@ from pathlib import Path
 
 logging.basicConfig()
 
+enableDebugLog = False
+
 def AddLog(s:str):
+    print(datetime.now(), ":", s)
+
+def AddDebugLog(s:str):
+  global enableDebugLog
+  if enableDebugLog:
     print(datetime.now(), ":", s)
 
 def GetUnixtime():
@@ -117,10 +124,45 @@ def SendTempSession(server, deviceName, t):
 
 async def SendCommand(instance, client, char, cmd):
   command = "gjcommand:" + cmd
-  #AddLog("command:" + command)
+  AddDebugLog("send command:" + command)
   encoded_string = command.encode()
   byte_array = bytearray(encoded_string)
   await client.write_gatt_char(char, byte_array)
+
+async def SendCommandAndReceive(instance, client, char, cmd, timeout, clientOnReceive):
+  
+  done = False
+  received = ""
+  lastReceived = GetUnixtime()
+
+  def OnReceive(sender, data):
+    nonlocal received
+    nonlocal done
+    nonlocal lastReceived
+    nonlocal clientOnReceive
+
+    lastReceived = GetUnixtime()
+
+    str = bytearray(data).decode("utf-8") 
+    received += str
+
+    done = clientOnReceive(data)
+
+    AddDebugLog("Received ble data:'{0}'".format(str))
+
+  await client.start_notify(char, OnReceive)
+
+  await SendCommand(instance, client, char, cmd)
+
+  while done == False:
+    elapsed = GetUnixtime() - lastReceived
+    if elapsed >= timeout:
+      break
+    await asyncio.sleep(0.1)
+
+  await client.stop_notify(char)
+
+  return received
 
 def UploadReadings(instance):
   
@@ -254,16 +296,28 @@ async def ReadValues(instance, client):
   #but not too often to avoid flash wear
   #this can duplicate readings in the webserver data file
   #and must be handled accordingly
-  if elapsedSinceOldest >= secondsIn3Days and instance.oldestSessionTime != 0:
-    await SendCommand(instance, client, writeChar, "turndata clear")
+  if (elapsedSinceOldest >= secondsIn3Days and instance.oldestSessionTime != 0) or instance.clearAll:
+    def OnReceive(data):
+      return True #exit stop receiving upon first message
+    await SendCommandAndReceive(instance, client, writeChar, "turndata clear", 1, OnReceive)
+    #await asyncio.sleep(5.0)
     instance.oldestSessionTime = 0
     AddLog("Data sessions cleared")
+
+  if instance.sendTestCommand:
+    AddDebugLog("SendTestCommand")
+    def OnReceiveCommand(data):
+      return True
+
+    await SendCommandAndReceive(instance, client, writeChar, "version", 5, OnReceiveCommand)
+
+
 
   #add 1 to skip the last recorded timestamp
   instance.newestSessionTime = max(maxTime, instance.newestSessionTime)
 
 def ReadAdvertData(instance):
-  AddLog("Reading advert data...")
+  AddDebugLog("Reading advert data...")
 
   #AddLog(dir(instance.device))
   #AddLog(dir(instance.device.metadata))
@@ -276,7 +330,7 @@ def ReadAdvertData(instance):
 
     unixtime = 0
 
-    #AddLog("Advert len {0} data {1}".format(len(b), b));
+    AddDebugLog("Advert len {0} data {1}".format(len(b), b))
 
     if b[0] == 0x05 and b[1] == 0xff and len(b) == 6:
       unixtime = b[2] | (b[3] << 8) | (b[4] << 16) | (b[5] << 24) 
@@ -383,6 +437,7 @@ async def ReadDevice(instance, name:str):
 
             instance.device = None  #advert data not refreshed otherwise
 
+          
 
           timeout = 60 * 15        #sleep 15 minutes
 
@@ -424,19 +479,34 @@ async def run():
     instance.newReadingsFilepath = script_dir+"/newreadings.txt"
     instance.device = None
     instance.debug = False
+    instance.clearAll = False
+    instance.sendTestCommand = False
 
     AddLog(argv)
     if len(argv) > 1:
+
+      global enableDebugLog
+      enableDebugLog = True
+
+      AddDebugLog("Debug log enabled")
+
       mod = argv[1]
       
       if mod == "peppeX":
-        AddLog("Dev mode")
+        AddDebugLog("Dev mode")
         instance.readingsFilepath = script_dir+"/readingsB.txt"
         instance.newReadingsFilepath = script_dir+"/newreadingsB.txt"
         instance.debug = True
       else:
         AddLog("Unknown module name")
         exit(0)
+
+      for arg in argv:
+        if arg == "clearAll":
+          instance.clearAll = True
+
+        if arg == "sendTestCommand":
+          instance.sendTestCommand = True
     
     AddLog("Server:" + instance.server)
     AddLog("Readings:" + instance.readingsFilepath)
