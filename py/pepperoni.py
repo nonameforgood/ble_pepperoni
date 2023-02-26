@@ -49,6 +49,8 @@ def GetSessionPeriod(t):
 
   words = t.split(" ")
 
+  AddDebugLog("Session period {0}".format(words[2]))
+
   period = GetVarValue(words[2])
 
   return int(period)
@@ -277,7 +279,7 @@ async def ReadValues(instance, client):
     fileSession = session + "\n"
     localFile.write(fileSession)
     sessionTime = GetSessionTime(session)
-    #period = GetSessionPeriod(session)
+    instance.period = GetSessionPeriod(session)
     #tempCount = GetSessionValueCount(session)
     minTime = min(minTime, sessionTime)
     maxTime = max(maxTime, sessionTime)
@@ -296,7 +298,7 @@ async def ReadValues(instance, client):
   #but not too often to avoid flash wear
   #this can duplicate readings in the webserver data file
   #and must be handled accordingly
-  if (elapsedSinceOldest >= secondsIn3Days and instance.oldestSessionTime != 0) or instance.clearAll:
+  if (elapsedSinceOldest >= secondsIn3Days and instance.oldestSessionTime != 0) and instance.enableClear:
     def OnReceive(data):
       return True #exit stop receiving upon first message
     await SendCommandAndReceive(instance, client, writeChar, "turndata clear", 1, OnReceive)
@@ -421,6 +423,7 @@ async def ReadDevice(instance, name:str):
   while True:
       if errors > 5:
           errors = 0
+          AddLog("Error count >= 5, pausing for 30 seconds")
           await asyncio.sleep(30)
           instance.device = None  #force rescan
       try:
@@ -437,9 +440,18 @@ async def ReadDevice(instance, name:str):
 
             instance.device = None  #advert data not refreshed otherwise
 
-          
+          timeout = 0
 
-          timeout = 60 * 15        #sleep 15 minutes
+          if instance.period != 0 and instance.newestSessionTime != 0:
+            #try to wait until the next expected data session
+            AddDebugLog("new {0} period {1}".format(instance.newestSessionTime, instance.period))
+            nextExpectedDataTime = instance.newestSessionTime + instance.period * 16
+            delay = 60 * 1 #give module some time to write data
+            timeout = nextExpectedDataTime - GetUnixtime() + delay
+            #timeout = max(timeout, 0) #next data might be past due, happens when module had no data to send
+            AddLog("Timeout using next expected data:{0}".format(timeout))
+          
+          timeout = max(timeout, 60 * 15)
 
           nr = datetime.fromtimestamp(GetUnixtime() + timeout).strftime('%Y-%m-%d %H:%M:%S')
           AddLog("Next read will occur at {0}".format(nr))
@@ -474,10 +486,12 @@ async def run():
     instance = type('', (), {})()
     instance.newestSessionTime = 0
     instance.oldestSessionTime = 0
+    instance.period = 0
     instance.server = "https://devtest.michelvachon.com"
     instance.readingsFilepath = script_dir+"/readings.txt"
     instance.newReadingsFilepath = script_dir+"/newreadings.txt"
     instance.device = None
+    instance.enableClear = True
     instance.debug = False
     instance.clearAll = False
     instance.sendTestCommand = False
@@ -489,17 +503,13 @@ async def run():
       enableDebugLog = True
 
       AddDebugLog("Debug log enabled")
-
+      AddDebugLog("Dev mode")
       mod = argv[1]
       
-      if mod == "peppeX":
-        AddDebugLog("Dev mode")
-        instance.readingsFilepath = script_dir+"/readingsB.txt"
-        instance.newReadingsFilepath = script_dir+"/newreadingsB.txt"
-        instance.debug = True
-      else:
-        AddLog("Unknown module name")
-        exit(0)
+      instance.readingsFilepath = script_dir+"/readingsB.txt"
+      instance.newReadingsFilepath = script_dir+"/newreadingsB.txt"
+      instance.debug = True
+      instance.enableClear = False
 
       for arg in argv:
         if arg == "clearAll":
