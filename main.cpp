@@ -20,7 +20,7 @@
 
 #if defined(NRF51)
   #define GJ_NRF51_OR_NRF52(code51, code52) code51
-#elif defined(NRF51)
+#elif defined(NRF52)
   #define GJ_NRF51_OR_NRF52(code51, code52) code52
 #endif
 
@@ -85,10 +85,6 @@ struct TurnData
   TurnData();
   DataCollector *m_collector = nullptr;
 
-  uint32_t m_beginTime = 0; 
-  uint32_t m_endTime = 0;
-  uint32_t m_turnCount = 0;
-
   DigitalSensor m_sensor;
   DigitalSensorCB m_sensorCB;
 } turnData;
@@ -100,42 +96,68 @@ TurnData::TurnData()
 
 }
 
+void OnTurnDataTimer();
+void SetTurnDataTimer();
+
+#define WHEEL_DBG_SER(format, ...) { const bool wheeldbg = GJ_CONF_INT32_VALUE(wheeldbg) != 0; if (wheeldbg) { SER(format, ##__VA_ARGS__); } } 
+
+void WriteTurnData(uint32_t time)
+{
+  WHEEL_DBG_SER("WriteTurnData\n\r");
+  const int32_t sessionTime = GetSessionTime(*turnData.m_collector);
+        
+  WriteDataSession(*turnData.m_collector);
+  InitDataSession(*turnData.m_collector, time);
+
+  //update manuf unixtime after file write
+  s_manufData.m_lastSessionUnixtime = sessionTime;
+  RefreshManufData();
+
+  SetTurnDataTimer();
+}
+
+void SetTurnDataTimer()
+{
+  const int32_t sessionTime = GetSessionTime(*turnData.m_collector);
+  const int32_t endTime = sessionTime + period * 16;
+  const int32_t delay = endTime - GetUnixtime();
+
+  //make sure delay is positive and non zero
+  const int32_t adjustedDelay = Max(delay, 1);
+  
+  WHEEL_DBG_SER("Turn timer set to %d(%ds)\n\r", GetUnixtime() + adjustedDelay, adjustedDelay);
+
+  const int64_t secsToMicros = 1000000;
+  GJEventManager->DelayAdd(OnTurnDataTimer, adjustedDelay * secsToMicros);
+}
+
+void OnTurnDataTimer()
+{
+  WHEEL_DBG_SER("OnTurnDataTimer\n\r");
+
+  const uint32_t time = GetUnixtime();
+  const bool isSessionExpired = IsExpired(*turnData.m_collector, time);
+  if (isSessionExpired)
+  {
+    WriteTurnData(time);
+  }
+}
+
 void OnWheelTurn(DigitalSensor &sensor, uint32_t val)
 {
   const uint32_t time = GetUnixtime();
-  if (time >= turnData.m_endTime)
+  const bool isSessionExpired = IsExpired(*turnData.m_collector, time);
+  if (isSessionExpired)
   {
-    if (turnData.m_turnCount)
-    {
-      const bool dataAdded = AddData(*turnData.m_collector, turnData.m_beginTime, turnData.m_turnCount);
-      
-      SER_COND(!dataAdded, "ERROR:Turn data not added\n\r");
-      SER_COND(dataAdded,  "wheel turn data added:@%d, count:%d\n\r", turnData.m_beginTime, turnData.m_turnCount);
-
-      const bool isSessionExpired = IsExpired(*turnData.m_collector);
-      if (isSessionExpired)
-      {
-        const int32_t sessionTime = GetSessionTime(*turnData.m_collector);
-        
-        WriteDataSession(*turnData.m_collector);
-        InitDataSession(*turnData.m_collector, GetUnixtime());
-
-        //update manuf unixtime after file write
-        s_manufData.m_lastSessionUnixtime = sessionTime;
-        RefreshManufData();
-      }
-
-      turnData.m_turnCount = 0;
-    }
-
-    turnData.m_endTime = GetBlockEndTime(*turnData.m_collector);
-    turnData.m_beginTime = turnData.m_endTime - period;
+    WriteTurnData(time);
   }
+  
+  const int16_t turnCount = 1;
+  const bool dataAdded = AddData(*turnData.m_collector, time, turnCount);
+      
+  SER_COND(!dataAdded, "ERROR:Turn data not added\n\r");
 
-  turnData.m_turnCount++;
-
-  const uint32_t wheeldbg = GJ_CONF_INT32_VALUE(wheeldbg);
-  SER_COND(wheeldbg != 0, "Wheel turn %d\n\r", turnData.m_turnCount);
+  WHEEL_DBG_SER("Wheel turn (time:%d)\n\r", time);
 }
 
 void TriggerOnWheelTurn()
@@ -317,9 +339,7 @@ int main(void)
   
   uint32_t turnDataId = GJ_CONF_INT32_VALUE(wheeldataid);
   turnData.m_collector = InitDataCollector("/turndata", turnDataId, period);
-  turnData.m_endTime = GetBlockEndTime(*turnData.m_collector);
-  turnData.m_beginTime = turnData.m_endTime - period;
-  
+
   const char *hostName = GetHostName();
   //note:must initialize after InitFStorage()
   bleServer.Init(hostName, otaInit);
@@ -342,4 +362,3 @@ int main(void)
       }
   }
 }
-

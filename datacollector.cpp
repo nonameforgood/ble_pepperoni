@@ -18,6 +18,10 @@ struct DataCollector
 {
   char m_path[16];
   DataSession m_dataSession;
+
+  int32_t m_currentBlock = -1;
+  int32_t m_currentBlockBegin = 0;
+  int32_t m_currentBlockEnd = 0;
 };
 
 void DisplayDataSession(const DataSession &session)
@@ -143,23 +147,38 @@ void WriteDataSession(DataCollector &collector)
   WriteDataSession(collector.m_path, collector.m_dataSession);
 }
 
-bool AddSessionData(DataSession &session, uint32_t time, uint16_t value)
+bool AddSessionData(DataCollector &collector, uint32_t time, uint16_t value)
 {
-  bool success = false;
+  DataSession &session = collector.m_dataSession;
 
-  for (int i = 0 ; i < DataSession::MaxData ; ++i)
+  if (time < collector.m_currentBlockBegin || time >= collector.m_currentBlockEnd)
   {
-    uint32_t beginTime = session.m_time + i * session.m_period;
-    uint32_t endTime = beginTime + session.m_period;
-    if (time >= beginTime && time < endTime)
-    {
-      session.m_values[i] += value;
-      success = true;
-      break;
-    }
-  }
+    bool success = false;
 
-  return success;
+    for (int i = 0 ; i < DataSession::MaxData ; ++i)
+    {
+      uint32_t beginTime = session.m_time + i * session.m_period;
+      uint32_t endTime = beginTime + session.m_period;
+      if (time >= beginTime && time < endTime)
+      {
+        collector.m_currentBlock = i;
+        collector.m_currentBlockBegin = beginTime;
+        collector.m_currentBlockEnd = endTime;
+
+        //SER("Change session block\n\r");
+        
+        success = true;
+        break;
+      }
+    }
+
+    if (!success)
+      return false;
+  }
+  
+  session.m_values[collector.m_currentBlock] += value;
+
+  return true;
 }
 
 void InitDataSession(DataSession &session, uint32_t time)
@@ -167,7 +186,7 @@ void InitDataSession(DataSession &session, uint32_t time)
   session.m_time = time;
   memset(session.m_values, 0, sizeof(session.m_values));
 
-  SER("Init data session time:%d\n\r", session.m_time);
+  SER("Init data session time:%d-%d\n\r", session.m_time, session.m_time + session.m_period * DataSession::MaxData);
 }
 
 void InitDataSession(DataCollector &collector, uint32_t time)
@@ -175,11 +194,10 @@ void InitDataSession(DataCollector &collector, uint32_t time)
   InitDataSession(collector.m_dataSession, time);
 }
 
-bool IsExpired(const DataCollector &collector)
+bool IsExpired(const DataCollector &collector, uint32_t currentTime)
 {
   const DataSession &session = collector.m_dataSession;
 
-  const uint32_t currentTime = GetUnixtime();
   const uint32_t sessionEndTime = session.m_time + session.m_period * DataSession::MaxData;
   const bool expired = currentTime >= sessionEndTime;
 
@@ -193,7 +211,7 @@ bool AddData(DataCollector &collector, uint32_t time, uint16_t value)
   if (session.m_time == 0)
     InitDataSession(session, time);
 
-  const bool success = AddSessionData(session, time, value);
+  const bool success = AddSessionData(collector, time, value);
   return success;
 }
 
