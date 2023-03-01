@@ -157,7 +157,7 @@ void OnWheelTurn(DigitalSensor &sensor, uint32_t val)
       
   SER_COND(!dataAdded, "ERROR:Turn data not added\n\r");
 
-  WHEEL_DBG_SER("Wheel turn time:%d\n\r", time);
+  WHEEL_DBG_SER("Wheel turn (time:%d)\n\r", time);
 }
 
 void TriggerOnWheelTurn()
@@ -362,4 +362,3 @@ int main(void)
       }
   }
 }
-

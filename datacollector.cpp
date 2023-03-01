@@ -165,7 +165,7 @@ bool AddSessionData(DataCollector &collector, uint32_t time, uint16_t value)
         collector.m_currentBlockBegin = beginTime;
         collector.m_currentBlockEnd = endTime;
 
-        SER("Change session block\n\r");
+        //SER("Change session block\n\r");
         
         success = true;
         break;
