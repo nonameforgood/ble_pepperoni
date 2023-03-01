@@ -205,8 +205,6 @@
       <file file_name="$(GJ_PATH)/gj/printmem.cpp" />
       <file file_name="$(GJ_PATH)/gj/gjlock.cpp" />
       <file file_name="$(GJ_PATH)/gj/utils.cpp" />
-      <file file_name="$(GJ_PATH)/gj/tests/tests.cpp" />
-      <file file_name="$(GJ_PATH)/gj/tests/test_pins.cpp" />
     </folder>
     <configuration
       Name="ReleasePartitionA"
