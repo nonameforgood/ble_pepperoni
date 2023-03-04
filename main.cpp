@@ -349,13 +349,11 @@ int main(void)
 
   const char *hostName = GetHostName();
   //note:must initialize after InitFStorage()
-  //bleServer.Init(hostName, otaInit);
+  bleServer.Init(hostName, otaInit);
 
-  //bleServer.SetAdvManufData(&s_manufData, sizeof(s_manufData));
+  bleServer.SetAdvManufData(&s_manufData, sizeof(s_manufData));
   
   SER_COND(period != 60 * 15, "****PERIOD****\n\r");
-
-  GJ_CONF_INT32_VALUE(wheeldbg) = 1;
 
   for (;;)
   {
