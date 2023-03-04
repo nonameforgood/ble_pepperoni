@@ -86,12 +86,12 @@ struct TurnData
   DataCollector *m_collector = nullptr;
 
   DigitalSensor m_sensor;
-  DigitalSensorCB m_sensorCB;
+  DigitalSensorAutoToggleCB m_sensorCB;
 } turnData;
 
 TurnData::TurnData()
-: m_sensor(300)
-, m_sensorCB(&m_sensor)
+: m_sensor(10)
+, m_sensorCB(&m_sensor, -1, 0)
 {
 
 }
@@ -152,12 +152,19 @@ void OnWheelTurn(DigitalSensor &sensor, uint32_t val)
     WriteTurnData(time);
   }
   
-  const int16_t turnCount = 1;
-  const bool dataAdded = AddData(*turnData.m_collector, time, turnCount);
-      
-  SER_COND(!dataAdded, "ERROR:Turn data not added\n\r");
+  if (val != 0)
+  {
+    const int16_t turnCount = 1;
+    const bool dataAdded = AddData(*turnData.m_collector, time, turnCount);
+        
+    SER_COND(!dataAdded, "ERROR:Turn data not added\n\r");
 
-  WHEEL_DBG_SER("Wheel turn (time:%d)\n\r", time);
+    WHEEL_DBG_SER("Wheel turn (time:%d)\n\r", time);
+  }
+  //else
+  //{
+  //  WHEEL_DBG_SER("Wheel turn SKIPPED (time:%d)\n\r", time);
+  //}
 }
 
 void TriggerOnWheelTurn()
@@ -342,11 +349,13 @@ int main(void)
 
   const char *hostName = GetHostName();
   //note:must initialize after InitFStorage()
-  bleServer.Init(hostName, otaInit);
+  //bleServer.Init(hostName, otaInit);
 
-  bleServer.SetAdvManufData(&s_manufData, sizeof(s_manufData));
+  //bleServer.SetAdvManufData(&s_manufData, sizeof(s_manufData));
   
   SER_COND(period != 60 * 15, "****PERIOD****\n\r");
+
+  GJ_CONF_INT32_VALUE(wheeldbg) = 1;
 
   for (;;)
   {
