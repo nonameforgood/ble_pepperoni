@@ -1,5 +1,5 @@
 .DS_store
-.emSession
+*.emSession
 *.jlink
 Output
 pool_temps.out.poolB.txt
@@ -9,3 +9,5 @@ readingsB.txt
 bins/
 gj/
 dev/
+debuglog.txt
+dbg.log
