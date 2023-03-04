@@ -161,10 +161,6 @@ void OnWheelTurn(DigitalSensor &sensor, uint32_t val)
 
     WHEEL_DBG_SER("Wheel turn (time:%d)\n\r", time);
   }
-  //else
-  //{
-  //  WHEEL_DBG_SER("Wheel turn SKIPPED (time:%d)\n\r", time);
-  //}
 }
 
 void TriggerOnWheelTurn()
