@@ -1,0 +1,92 @@
+#! /usr/bin/env bash
+thisFolder="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"   #`dirname $_`
+
+cd $thisFolder
+
+echo "$PWD"
+
+#********
+#create repo 'ble_pepperoni' VERSION
+#********
+
+#delete files version_diff and version_temp
+[[ -f ".version_diff" ]] && rm .version_diff
+[[ -f ".version_temp" ]] && rm .version_temp
+
+#output current commit hash into version_temp
+printf "%s" "$(git rev-parse HEAD)" >> .version_temp
+
+#printf "%s" "456" >> version_temp
+
+#delete ".version" if "version.h" doesn't exist
+[[ ! -f "version.h" ]] && [[ -f ".version" ]] && rm .version
+
+if [[ ! -f ".version" ]]
+then
+  #".version" does not exists, create bogus file
+  echo 0 >> .version
+fi
+
+#compare ".version_temp" and ".version"
+diff -q .version_temp .version >> .version_diff
+
+#check file size of ".version_diff"
+if [ -s ".version_diff" ] ; then
+  #file size is non zero, means files ".version_temp" and ".version" are different
+  echo app git version changed, generating new version.h
+  rm .version
+  cp .version_temp .version
+  [[ -f "version.h" ]] && rm version.h
+  printf "\"%s\"" "$(cat .version_temp)" >> version.h
+else
+  echo app git version identical, not generating new version.h
+fi
+
+#delete files ".version_diff" and ".version_temp"
+[[ -f ".version_diff" ]] && rm .version_diff
+[[ -f ".version_temp" ]] && rm .version_temp
+
+
+
+#********
+#create repo 'gj' VERSION
+#********
+
+
+
+[[ -f ".version_diff_gj" ]] && rm .version_diff_gj
+[[ -f ".version_temp_gj" ]] && rm .version_temp_gj
+
+cd gj
+
+#output current commit hash into version_temp
+git rev-parse HEAD >> ../.version_temp_gj
+
+cd ..
+
+#delete ".version_gj" if "version_gj.h" doesn't exist
+[[ ! -f "version_gj.h" ]] && [[ -f ".version_gj" ]] && rm .version_gj
+
+
+if [[ ! -f ".version_gj" ]]
+then
+  #".version_gj" does not exists, create empty file
+  echo 0 >> .version_gj
+fi
+
+diff -q .version_temp_gj .version_gj >> .version_diff_gj
+
+#check file size of ".version_diff_gj"
+if [ -s ".version_diff_gj" ] ; then
+  #file size is non zero, means the files are different
+  echo gj git version changed, generating new version_gj.h
+  rm .version_gj
+  cp .version_temp_gj .version_gj
+  [[ -f "version_gj.h" ]] && rm version_gj.h
+  printf "\"%s\"" "$(cat .version_gj)" >> version_gj.h
+else
+  echo gj git version identical, not generating new version_gj.h
+fi
+
+[[ -f ".version_diff_gj" ]] && rm .version_diff_gj
+[[ -f ".version_temp_gj" ]] && rm .version_temp_gj

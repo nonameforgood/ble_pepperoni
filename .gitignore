@@ -11,3 +11,7 @@ gj/
 dev/
 debuglog.txt
 dbg.log
+.version
+.version_gj
+version.h
+version_gj.h
