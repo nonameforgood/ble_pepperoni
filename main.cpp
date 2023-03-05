@@ -24,6 +24,15 @@
   #define GJ_NRF51_OR_NRF52(code51, code52) code52
 #endif
 
+const char *version_app = 
+#include "version.h"
+;
+
+
+const char *version_gj = 
+#include "version_gj.h"
+;
+
 
 
 DEFINE_CONFIG_INT32(modulesuffix, modulesuffix, (uint32_t)'X');
@@ -205,6 +214,7 @@ void PrintVersion()
   SER("%s Pepperoni Partition %d (0x%x, size:%d) Build:%s\r\n", chipName, partition, &__vectors_load_start__, exeSize, s_buildDate);
   SER("DeviceID:0x%x%x\n\r", NRF_FICR->DEVICEID[0], NRF_FICR->DEVICEID[1]);
   SER("Hostname:%s\n\r", hostName);
+  SER("App hash %s GJ hash %s\n\r", version_app, version_gj);
 }
 
 void Command_Version()
