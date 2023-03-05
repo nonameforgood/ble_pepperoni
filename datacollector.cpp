@@ -123,6 +123,12 @@ void Display(const DataCollector &collector, uint32_t minTime)
   DisplayDataSessions(&collector, 0, minTime);
 }
 
+void DisplayActiveDataSession(const DataCollector *collector)
+{
+  DisplayDataSession(collector->m_dataSession);
+}
+
+
 void WriteDataSession(const char *path, const DataSession &session)
 {
   AppendOnlyFile file(path);

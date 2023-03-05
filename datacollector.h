@@ -15,3 +15,4 @@ void InitDataSession(DataCollector &collector, uint32_t time);
 bool IsExpired(const DataCollector &collector, uint32_t time);
 void ClearStorage(DataCollector &collector);
 void Display(const DataCollector &collector, uint32_t minTime);
+void DisplayActiveDataSession(const DataCollector *collector);
