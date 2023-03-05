@@ -95,12 +95,12 @@ struct TurnData
   DataCollector *m_collector = nullptr;
 
   DigitalSensor m_sensor;
-  DigitalSensorAutoToggleCB m_sensorCB;
+  DigitalSensorCB m_sensorCB;
 } turnData;
 
 TurnData::TurnData()
 : m_sensor(10)
-, m_sensorCB(&m_sensor, 0, 1)
+, m_sensorCB(&m_sensor)
 {
 
 }
