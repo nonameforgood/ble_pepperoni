@@ -40,7 +40,7 @@ DEFINE_CONFIG_INT32(modulesuffix, modulesuffix, (uint32_t)'X');
 DEFINE_CONFIG_INT32(wheelpwrpin, wheelpwrpin, GJ_NRF51_OR_NRF52(10, 17));
 
 DEFINE_CONFIG_INT32(wheelpin, wheelpin, GJ_NRF51_OR_NRF52(4, 16));
-DEFINE_CONFIG_INT32(wheelpinpull, wheelpinpull, -1);
+DEFINE_CONFIG_INT32(wheelpinpull, wheelpinpull, 1);
 DEFINE_CONFIG_INT32(wheeldbg, wheeldbg, 0);
 DEFINE_CONFIG_INT32(wheeldataid, wheeldataid, 0);
 
@@ -95,12 +95,12 @@ struct TurnData
   DataCollector *m_collector = nullptr;
 
   DigitalSensor m_sensor;
-  DigitalSensorAutoToggleCB m_sensorCB;
+  DigitalSensorCB m_sensorCB;
 } turnData;
 
 TurnData::TurnData()
 : m_sensor(10)
-, m_sensorCB(&m_sensor, -1, 0)
+, m_sensorCB(&m_sensor)
 {
 
 }
@@ -161,7 +161,7 @@ void OnWheelTurn(DigitalSensor &sensor, uint32_t val)
     WriteTurnData(time);
   }
   
-  if (val != 0)
+  if (val == 0)
   {
     const int16_t turnCount = 1;
     const bool dataAdded = AddData(*turnData.m_collector, time, turnCount);
@@ -267,7 +267,7 @@ void Command_turndata(const char *command)
 
   if (info.m_argCount < 1)
   {
-    SER("Usage:turndata <disp|clear|debugtrigger|writedbg>\n\r");
+    SER("Usage:turndata <disp|active|clear|debugtrigger|writedbg>\n\r");
     return;
   }
 
@@ -284,6 +284,10 @@ void Command_turndata(const char *command)
     }
 
     Display(*turnData.m_collector, minTime);
+  }
+  else if (subCmd == "active")
+  {
+    DisplayActiveDataSession(turnData.m_collector);
   }
   else if (subCmd == "clear")
   {
@@ -348,7 +352,7 @@ int main(void)
   turnData.m_sensor.EnableInterrupts(true);
 
   SetupPin(wheelPwrPin, false, 0);
-  WritePin(wheelPwrPin, 1);
+  WritePin(wheelPwrPin, 0);
   
   uint32_t turnDataId = GJ_CONF_INT32_VALUE(wheeldataid);
   turnData.m_collector = InitDataCollector("/turndata", turnDataId, period);
