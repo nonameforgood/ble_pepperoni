@@ -43,6 +43,7 @@
       linker_section_placement_macros=""
       linker_section_placements_segments="FLASH RX 0x0 0x40000;RAM RWX 0x20000000 0x4000"
       macros="CMSIS_CONFIG_TOOL=$(NRF_SDK12_PATH)/external_tools/cmsisconfig/CMSIS_Configuration_Wizard.jar;GJ_PATH=../gj/src/"
+      pre_build_command="../gen_versions"
       project_directory=""
       project_type="Executable" />
     <folder Name="GJ Startup Files">
@@ -216,8 +217,7 @@
       gcc_optimization_level="Level 2 for size"
       linker_output_format="bin"
       linker_section_placement_macros="FLASH_PH_START=0x0;FLASH_PH_SIZE=0x40000;RAM_PH_START=0x20000000;RAM_PH_SIZE=0x4000;FLASH_START=0x1c000;FLASH_SIZE=0x10000;RAM_START=0x20002000;RAM_SIZE=0x2000"
-      post_build_command="mkdir -p $(ProjectDir)/../bins/ &amp;&amp; cp $(OutDir)/$(ProjectName)_pa.bin $(ProjectDir)/../bins/"
-      pre_build_command="../gen_versions" />
+      post_build_command="mkdir -p $(ProjectDir)/../bins/ &amp;&amp; cp $(OutDir)/$(ProjectName)_pa.bin $(ProjectDir)/../bins/" />
     <configuration
       Name="ReleasePartitionB"
       build_object_file_name="$(IntDir)/$(InputName)$(OBJ)"
