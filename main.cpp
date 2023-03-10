@@ -28,19 +28,17 @@ const char *version_app =
 #include "version.h"
 ;
 
-
 const char *version_gj = 
 #include "version_gj.h"
 ;
 
-
-
 DEFINE_CONFIG_INT32(modulesuffix, modulesuffix, (uint32_t)'X');
 
 DEFINE_CONFIG_INT32(wheelpwrpin, wheelpwrpin, GJ_NRF51_OR_NRF52(10, 17));
+DEFINE_CONFIG_INT32(wheelpwrout, wheelpwrout, 0);
 
 DEFINE_CONFIG_INT32(wheelpin, wheelpin, GJ_NRF51_OR_NRF52(4, 16));
-DEFINE_CONFIG_INT32(wheelpinpull, wheelpinpull, 1);
+DEFINE_CONFIG_INT32(wheelpinpull, wheelpinpull, 0);
 DEFINE_CONFIG_INT32(wheeldbg, wheeldbg, 0);
 DEFINE_CONFIG_INT32(wheeldataid, wheeldataid, 0);
 
@@ -172,15 +170,11 @@ void OnWheelTurn(DigitalSensor &sensor, uint32_t val)
   }
 }
 
+static volatile uint32_t nextTrigger = 300;
 void TriggerOnWheelTurn()
 {
-  //SER("TriggerOnWheelTurn");
-  
-  OnWheelTurn(turnData.m_sensor, 1);
-
-  int32_t next = rand() % 10;
-
-  GJEventManager->DelayAdd(TriggerOnWheelTurn, next * 1000000);
+  OnWheelTurn(turnData.m_sensor, 0);
+  GJEventManager->DelayAdd(TriggerOnWheelTurn, nextTrigger * 1000);
 }
 
 const char *GetHostName()
@@ -227,7 +221,6 @@ void Command_TempDie()
   uint32_t temp = tempSensor.GetValue();
   SER("Die Temp:%d\r\n", temp);
 }
-
 
 //map file names to static flash locations
 #if (NRF_FLASH_SECTOR_SIZE == 1024)
@@ -347,12 +340,14 @@ int main(void)
   uint32_t wheelPin = GJ_CONF_INT32_VALUE(wheelpin);
   int32_t wheelPinPull = GJ_CONF_INT32_VALUE(wheelpinpull);
   int32_t wheelPwrPin = GJ_CONF_INT32_VALUE(wheelpwrpin);
+  int32_t wheelPwrOut = GJ_CONF_INT32_VALUE(wheelpwrout);
+  
   turnData.m_sensor.SetPin(wheelPin, wheelPinPull);
   turnData.m_sensorCB.SetOnChange(OnWheelTurn);
   turnData.m_sensor.EnableInterrupts(true);
 
   SetupPin(wheelPwrPin, false, 0);
-  WritePin(wheelPwrPin, 0);
+  WritePin(wheelPwrPin, wheelPwrOut);
   
   uint32_t turnDataId = GJ_CONF_INT32_VALUE(wheeldataid);
   turnData.m_collector = InitDataCollector("/turndata", turnDataId, period);
