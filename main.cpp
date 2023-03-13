@@ -252,52 +252,60 @@ DEFINE_FILE_SECTORS(config,     "/config",    FILE_SECTOR_CONFIG,     1);
   END_BOOT_PARTITIONS()
 #endif
 
+void Command_TurnDataDisp(const CommandInfo &commandInfo)
+{
+  uint32_t minTime = 0;
+
+  if (commandInfo.m_argCount >= 1)
+  {
+    StringView arg1 = commandInfo.m_args[0];
+    minTime = strtol(arg1.data(), NULL, 0);
+  }
+
+  Display(*turnData.m_collector, minTime);
+}
+void Command_TurnDataActive(const CommandInfo &commandInfo)
+{
+  DisplayActiveDataSession(turnData.m_collector);
+}
+void Command_TurnDataClear(const CommandInfo &commandInfo)
+{
+  ClearStorage(*turnData.m_collector);
+}
+void Command_TurnDataDebugTrigger(const CommandInfo &commandInfo)
+{
+  TriggerOnWheelTurn();
+  SER("Data trigger\n\r");
+}
+void Command_TurnDataWriteDbg(const CommandInfo &commandInfo)
+{
+  s_manufData.m_lastSessionUnixtime = GetUnixtime();
+  RefreshManufData();
+  WriteDebugData(*turnData.m_collector);
+  SER("Debug Data written\n\r");
+}
+
 void Command_turndata(const char *command)
 {
-  CommandInfo info;
+  static constexpr const char * const s_argsName[] = {
+    "disp",
+    "active",
+    "clear",
+    "debugtrigger",
+    "writedbg"
+  };
 
-  GetCommandInfo(command, info);
+  static void (*const s_argsFuncs[])(const CommandInfo &commandInfo){
+    Command_TurnDataDisp,
+    Command_TurnDataActive,
+    Command_TurnDataClear,
+    Command_TurnDataDebugTrigger,
+    Command_TurnDataWriteDbg,
+    };
 
-  if (info.m_argCount < 1)
-  {
-    SER("Usage:turndata <disp|active|clear|debugtrigger|writedbg>\n\r");
-    return;
-  }
+  const SubCommands subCommands = {5, s_argsName, s_argsFuncs};
 
-  StringView subCmd = info.m_args[0];
-
-  if (subCmd == "disp")
-  {
-    uint32_t minTime = 0;
-
-    if (info.m_argCount > 1)
-    {
-      StringView arg1 = info.m_args[1];
-      minTime = strtol(arg1.data(), NULL, 10);
-    }
-
-    Display(*turnData.m_collector, minTime);
-  }
-  else if (subCmd == "active")
-  {
-    DisplayActiveDataSession(turnData.m_collector);
-  }
-  else if (subCmd == "clear")
-  {
-    ClearStorage(*turnData.m_collector);
-  }
-  else if (subCmd == "debugtrigger")
-  {
-    TriggerOnWheelTurn();
-    SER("Data trigger\n\r");
-  }
-  else if (subCmd == "writedbg")
-  {
-    s_manufData.m_lastSessionUnixtime = GetUnixtime();
-    RefreshManufData();
-    WriteDebugData(*turnData.m_collector);
-    SER("Debug Data written\n\r");
-  }
+  SubCommandForwarder(command, subCommands);
 }
 
 DEFINE_COMMAND_ARGS(turndata, Command_turndata);
