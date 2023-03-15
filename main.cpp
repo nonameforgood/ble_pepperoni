@@ -351,7 +351,7 @@ int main(void)
   int32_t wheelPwrOut = GJ_CONF_INT32_VALUE(wheelpwrout);
   
   turnData.m_sensor.SetPin(wheelPin, wheelPinPull);
-  turnData.m_sensor.m_polarity = DigitalSensor::Fall;
+  turnData.m_sensor.SetPolarity(DigitalSensor::Fall);
   turnData.m_sensorCB.SetOnChange(OnWheelTurn);
   turnData.m_sensor.EnableInterrupts(true);
 
