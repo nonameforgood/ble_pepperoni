@@ -32,6 +32,9 @@ const char *version_gj =
 #include "version_gj.h"
 ;
 
+const uint32_t oneHour = 60 * 60;
+const uint32_t oneDay = oneHour * 24;
+
 DEFINE_CONFIG_INT32(modulesuffix, modulesuffix, (uint32_t)'X');
 
 DEFINE_CONFIG_INT32(wheelpwrpin, wheelpwrpin, GJ_NRF51_OR_NRF52(10, 17));
@@ -41,6 +44,8 @@ DEFINE_CONFIG_INT32(wheelpin, wheelpin, GJ_NRF51_OR_NRF52(4, 16));
 DEFINE_CONFIG_INT32(wheelpinpull, wheelpinpull, 0);
 DEFINE_CONFIG_INT32(wheeldbg, wheeldbg, 0);
 DEFINE_CONFIG_INT32(wheeldataid, wheeldataid, 0);
+
+DEFINE_CONFIG_INT32(bleenabletime, bleenabletime, oneHour * 7); //7h00
 
 const uint32_t period = 15*60;
 
@@ -84,7 +89,8 @@ ManufData s_manufData = {};
 
 void RefreshManufData()
 {
-  bleServer.SetAdvManufData(&s_manufData, sizeof(s_manufData));
+  if (bleServer.IsInit())
+    bleServer.SetAdvManufData(&s_manufData, sizeof(s_manufData));
 }
 
 struct TurnData
@@ -313,6 +319,65 @@ DEFINE_COMMAND_NO_ARGS(version, Command_Version);
 DEFINE_COMMAND_NO_ARGS(tempdie, Command_TempDie);
 DEFINE_COMMAND_NO_ARGS(batt, Command_ReadBattery);
 
+
+#define BLE_SCHED_SER(message, ...) SER("BLE sched %d:" message, GetLocalUnixtime(), ##__VA_ARGS__)
+
+void OnBLEScheduleTimer()
+{
+  const uint32_t bleenabletime = GJ_CONF_INT32_VALUE(bleenabletime);
+  const uint32_t time = GetLocalUnixtime(); 
+  const uint32_t sinceMidnight = time % oneDay;
+  static bool hasClient = false;
+  
+  bool enable = true;
+  uint32_t timer = 60;
+
+  if (hasClient || bleServer.HasClient())
+  {
+    BLE_SCHED_SER("has clients\n\r");
+    enable = true;
+    timer = 60; //1 min
+  }
+  else if (GetElapsedMillis() < (60 * 1000))
+  {
+    BLE_SCHED_SER("early timer\n\r");
+    enable = true;
+    timer = 60; //1 min
+  }
+  else if (sinceMidnight >= bleenabletime)
+  {
+    BLE_SCHED_SER("later than bleenabletime(%d)\n\r", bleenabletime);
+    enable = true;
+    timer = oneDay - sinceMidnight;  //seconds to midnight
+  }
+  else 
+  {
+    BLE_SCHED_SER("midnight\n\r");
+    enable = false;
+    timer = bleenabletime;   //seconds to bleenabletime
+  }
+
+  hasClient = bleServer.HasClient();
+
+  if (enable && !bleServer.IsInit())
+  {
+    const char *hostName = GetHostName();
+    bleServer.Init(hostName, &ota);
+    RefreshManufData();
+  }
+  else if (!enable && bleServer.IsInit())
+  {
+    bleServer.Term();
+  }
+
+  timer = Min<uint32_t>(timer, oneDay);
+  timer = Max<uint32_t>(timer, 5);
+
+  BLE_SCHED_SER("timer:%d\n\r", timer);
+  const int64_t toMicros = 1000000;
+  GJEventManager->DelayAdd(OnBLEScheduleTimer, timer * toMicros);
+}
+
 int main(void)
 {
   for (uint32_t i = 0 ; i < 32 ; ++i)
@@ -338,9 +403,7 @@ int main(void)
 
   PrintVersion();
 
-  GJOTA *otaInit = nullptr;
   ota.Init();
-  otaInit = &ota;
 
   uint32_t maxEvents = 4;
   GJEventManager = new EventManager(maxEvents);
@@ -361,12 +424,9 @@ int main(void)
   uint32_t turnDataId = GJ_CONF_INT32_VALUE(wheeldataid);
   turnData.m_collector = InitDataCollector("/turndata", turnDataId, period);
 
-  const char *hostName = GetHostName();
-  //note:must initialize after InitFStorage()
-  bleServer.Init(hostName, otaInit);
+  //note:must initialize after InitFStorage
+  OnBLEScheduleTimer();
 
-  bleServer.SetAdvManufData(&s_manufData, sizeof(s_manufData));
-  
   SER_COND(period != 60 * 15, "****PERIOD****\n\r");
 
   for (;;)

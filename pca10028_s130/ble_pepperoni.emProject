@@ -8,7 +8,7 @@
       arm_endian="Little"
       arm_fp_abi="Soft"
       arm_fpu_type="None"
-      arm_linker_heap_size="2048"
+      arm_linker_heap_size="2016"
       arm_linker_process_stack_size="0"
       arm_linker_stack_size="2048"
       arm_linker_treat_warnings_as_errors="No"
@@ -69,7 +69,6 @@
       <file file_name="$(NRF_SDK12_PATH)/components/libraries/uart/retarget.c" />
       <file file_name="$(NRF_SDK12_PATH)/components/libraries/util/sdk_errors.c" />
       <file file_name="$(NRF_SDK12_PATH)/components/libraries/scheduler/app_scheduler.c" />
-      <file file_name="$(NRF_SDK12_PATH)/components/libraries/timer/app_timer_appsh.c" />
       <file file_name="$(NRF_SDK12_PATH)/components/libraries/bootloader/nrf_bootloader.c" />
       <file file_name="$(NRF_SDK12_PATH)/components/libraries/bootloader/nrf_bootloader_app_start.c" />
       <file file_name="$(NRF_SDK12_PATH)/components/libraries/bootloader/nrf_bootloader_info.c" />
@@ -166,7 +165,6 @@
       arm_core_type="Cortex-M0"
       arm_endian="Little"
       arm_fpu_type=""
-      arm_linker_heap_size="1792"
       arm_simulator_memory_simulation_parameter="RX 00000000,00040000,FFFFFFFF;RWX 20000000,00004000,CDCDCDCD"
       debug_additional_load_file="$(NRF_SDK12_PATH)/components/softdevice/s130/hex/s130_nrf51_2.0.1_softdevice.hex"
       debug_additional_load_file_address="0"
