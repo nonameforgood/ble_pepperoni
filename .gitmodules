@@ -1,0 +1,3 @@
+[submodule "gj"]
+	path = gj
+	url = https://github.com/nonameforgood/gj.git
