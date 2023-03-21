@@ -335,19 +335,14 @@ void OnBLEScheduleTimer()
   if (hasClient || bleServer.HasClient())
   {
     BLE_SCHED_SER("has clients\n\r");
-    enable = true;
-    timer = 60; //1 min
   }
   else if (GetElapsedMillis() < (60 * 1000))
   {
     BLE_SCHED_SER("early timer\n\r");
-    enable = true;
-    timer = 60; //1 min
   }
   else if (sinceMidnight >= bleenabletime)
   {
     BLE_SCHED_SER("later than bleenabletime(%d)\n\r", bleenabletime);
-    enable = true;
     timer = oneDay - sinceMidnight;  //seconds to midnight
   }
   else 
