@@ -320,7 +320,9 @@ DEFINE_COMMAND_NO_ARGS(tempdie, Command_TempDie);
 DEFINE_COMMAND_NO_ARGS(batt, Command_ReadBattery);
 
 
-#define BLE_SCHED_SER(message, ...) SER("BLE sched %d:" message, GetLocalUnixtime(), ##__VA_ARGS__)
+#define BLE_SCHED_SER(message, ...) 
+
+//SER("BLE sched %d:" message, GetLocalUnixtime(), ##__VA_ARGS__)
 
 void OnBLEScheduleTimer()
 {
@@ -349,7 +351,7 @@ void OnBLEScheduleTimer()
   {
     BLE_SCHED_SER("midnight\n\r");
     enable = false;
-    timer = bleenabletime;   //seconds to bleenabletime
+    timer = bleenabletime - sinceMidnight;   //seconds to bleenabletime
   }
 
   hasClient = bleServer.HasClient();
@@ -369,8 +371,8 @@ void OnBLEScheduleTimer()
   timer = Max<uint32_t>(timer, 5);
 
   BLE_SCHED_SER("timer:%d\n\r", timer);
-  const int64_t toMicros = 1000000;
-  GJEventManager->DelayAdd(OnBLEScheduleTimer, timer * toMicros);
+  //const int64_t toMicros = 1000000;
+  //GJEventManager->DelayAdd(OnBLEScheduleTimer, timer * toMicros);
 }
 
 int main(void)
