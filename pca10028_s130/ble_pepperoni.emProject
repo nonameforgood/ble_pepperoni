@@ -146,6 +146,7 @@
       arm_simulator_memory_simulation_parameter="RX 0001b000,00040000,FFFFFFFF;RWX 20000000,00008000,CDCDCDCD"
       arm_target_device_name="nRF51822_xxAC"
       arm_target_interface_type="SWD"
+      c_preprocessor_definitions="DEBUG;NRF;NRF51;NRF_SDK12;BLE_STACK_SUPPORT_REQD;NRF51422;BOARD_PCA10028;NRF_SD_BLE_API_VERSION=2;S130;SOFTDEVICE_PRESENT;SWI_DISABLE0;BSPACM_DEVICE_SERIES_NRF51;BSPACM_HIRES_TIMER_BASE=NRF_TIMER2_BASE;BSPACM_NRF_USE_SD=1"
       debug_enable_RTT="Yes"
       debug_entry_point_symbol=""
       debug_initial_breakpoint="main"
