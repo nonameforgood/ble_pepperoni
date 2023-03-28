@@ -18,6 +18,9 @@
 #include "gj/sensorcb.h"
 #include "datacollector.h"
 
+#define CENTRAL_LINK_COUNT              0                                           /**< Number of central links used by the application. When changing this number remember to adjust the RAM settings*/
+#define PERIPHERAL_LINK_COUNT           1                                           /**< Number of peripheral links used by the application. When changing this number remember to adjust the RAM settings*/
+
 #if defined(NRF51)
   #define GJ_NRF51_OR_NRF52(code51, code52) code51
 #elif defined(NRF52)
@@ -321,7 +324,6 @@ DEFINE_COMMAND_NO_ARGS(batt, Command_ReadBattery);
 
 
 #define BLE_SCHED_SER(message, ...) 
-
 //SER("BLE sched %d:" message, GetLocalUnixtime(), ##__VA_ARGS__)
 
 void OnBLEScheduleTimer()
@@ -400,6 +402,8 @@ int main(void)
 
   PrintVersion();
 
+  InitSoftDevice(CENTRAL_LINK_COUNT, PERIPHERAL_LINK_COUNT);
+
   ota.Init();
 
   uint32_t maxEvents = 4;
@@ -421,7 +425,6 @@ int main(void)
   uint32_t turnDataId = GJ_CONF_INT32_VALUE(wheeldataid);
   turnData.m_collector = InitDataCollector("/turndata", turnDataId, period);
 
-  //note:must initialize after InitFStorage
   OnBLEScheduleTimer();
 
   SER_COND(period != 60 * 15, "****PERIOD****\n\r");
