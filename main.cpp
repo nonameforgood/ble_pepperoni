@@ -35,6 +35,12 @@ const char *version_gj =
 #include "version_gj.h"
 ;
 
+
+const char *tag_app = 
+#include "tag.h"
+;
+
+
 const uint32_t oneHour = 60 * 60;
 const uint32_t oneDay = oneHour * 24;
 
@@ -196,7 +202,7 @@ const char *GetHostName()
   return hostName;
 }
 
-void PrintVersion()
+void PrintVersion(uint32_t step)
 {
   const char *s_buildDate =  __DATE__ "," __TIME__;
   extern int __vectors_load_start__;
@@ -214,15 +220,30 @@ void PrintVersion()
 
   const uint32_t exeSize = (char*)&__FLASH_segment_used_end__ - (char*)&__vectors_load_start__;
 
-  SER("%s Pepperoni Partition %d (0x%x, size:%d) Build:%s\r\n", chipName, partition, &__vectors_load_start__, exeSize, s_buildDate);
-  SER("DeviceID:0x%x%x\n\r", NRF_FICR->DEVICEID[0], NRF_FICR->DEVICEID[1]);
-  SER("Hostname:%s\n\r", hostName);
-  SER("App hash %s GJ hash %s\n\r", version_app, version_gj);
+  if (AreTerminalsReady())
+  {
+    SER_COND(step == 0, "%s Pepperoni (0x%x, size:%d) \r\n", chipName, &__vectors_load_start__, exeSize);
+    SER_COND(step == 1, "DeviceID:0x%x%x\n\r", NRF_FICR->DEVICEID[0], NRF_FICR->DEVICEID[1]);
+    SER_COND(step == 2, "Hostname:%s\n\r", hostName);
+    SER_COND(step == 3, "Partition:%d\n\r", partition);
+    SER_COND(step == 4, "App version %s (Built:%s)\n\r", tag_app, s_buildDate);
+    SER_COND(step == 5, "App hash %s\n\r", version_app);
+    SER_COND(step == 6, "GJ hash %s\n\r", version_gj);
+
+    step++;
+  }
+  
+  if (step < 7)
+  {
+    EventManager::Function func;
+    func = std::bind(PrintVersion, step);
+    GJEventManager->DelayAdd(func, 10);
+  }
 }
 
 void Command_Version()
 {
-  PrintVersion();
+  PrintVersion(0);
 }
 
 void Command_TempDie()
@@ -400,14 +421,14 @@ int main(void)
   InitConfig();
   PrintConfig();
 
-  PrintVersion();
-
   InitSoftDevice(CENTRAL_LINK_COUNT, PERIPHERAL_LINK_COUNT);
 
   ota.Init();
 
   uint32_t maxEvents = 4;
   GJEventManager = new EventManager(maxEvents);
+
+  PrintVersion(0);
 
   uint32_t wheelPin = GJ_CONF_INT32_VALUE(wheelpin);
   int32_t wheelPinPull = GJ_CONF_INT32_VALUE(wheelpinpull);

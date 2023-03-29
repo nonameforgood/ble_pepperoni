@@ -15,3 +15,4 @@ dbg.log
 .version_gj
 version.h
 version_gj.h
+tag.h
