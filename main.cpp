@@ -394,8 +394,8 @@ void OnBLEScheduleTimer()
   timer = Max<uint32_t>(timer, 5);
 
   BLE_SCHED_SER("timer:%d\n\r", timer);
-  //const int64_t toMicros = 1000000;
-  //GJEventManager->DelayAdd(OnBLEScheduleTimer, timer * toMicros);
+  const int64_t toMicros = 1000000;
+  GJEventManager->DelayAdd(OnBLEScheduleTimer, timer * toMicros);
 }
 
 int main(void)
