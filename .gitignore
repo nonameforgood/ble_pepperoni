@@ -16,3 +16,6 @@ dbg.log
 version.h
 version_gj.h
 tag.h
+.tag_temp
+.version_temp
+.version_temp_gj
