@@ -14,6 +14,9 @@
 		},
 		{
 			"path": "gj/src/gj"
+		},
+		{
+			"path": "../../../../Library/SEGGER/SEGGER Embedded Studio/v3/packages/libraries/libcxx/include"
 		}
 	],
 	"settings": {}
