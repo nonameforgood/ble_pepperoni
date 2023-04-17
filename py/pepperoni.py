@@ -200,6 +200,32 @@ def UploadReadings(instance):
 
   os.remove(instance.newReadingsFilepath)
 
+async def SendUnixtime(instance, client):
+  svcs = await client.get_services()
+
+  writeSrv = None
+  readSrv = None
+
+  for service in svcs:
+      #AddLog("service {0}".format(service.uuid))
+      #if service.uuid == "000000ff-0000-1000-8000-00805f9b34fb":
+      #    writeSrv = service;
+      if service.uuid == "000000ee-0000-1000-8000-00805f9b34fb":
+          writeSrv = service;
+
+  for char in writeSrv.characteristics:
+    if char.uuid == "0000ee01-0000-1000-8000-00805f9b34fb":
+      writeChar = char
+
+  def OnReceiveCommand(data):
+      AddLog(data)
+      return True
+      
+  AddLog("Sending unixtime")
+  timeout = 100
+  await SendCommandAndReceive(instance, client, writeChar, "unixtime {0}".format(GetUnixtime()), timeout, OnReceiveCommand)
+
+
 async def ReadValues(instance, client):
   svcs = await client.get_services()
 
@@ -362,13 +388,12 @@ async def ReadRecordedSessions(instance):
             await client.is_connected()
             AddLog("Connected")
             #todo: set uc module time
+
+            await SendUnixtime(instance, client)
             await ReadValues(instance, client)
             await client.disconnect()
             client = None
             #instance.lastSessionRead = time.time()
-
-
-            
             #del(client)
             
           break
