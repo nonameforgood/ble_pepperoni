@@ -167,9 +167,6 @@
       arm_endian="Little"
       arm_fpu_type=""
       arm_simulator_memory_simulation_parameter="RX 00000000,00040000,FFFFFFFF;RWX 20000000,00004000,CDCDCDCD"
-      debug_additional_load_file="$(NRF_SDK12_PATH)/components/softdevice/s130/hex/s130_nrf51_2.0.1_softdevice.hex"
-      debug_additional_load_file_address="0"
-      debug_additional_load_file_address1="0x1bc00"
       debug_restrict_memory_access="No"
       debug_terminal_log_file="/Users/rsmrsm/Documents/nordic/projects/ble_pepperoni/debuglog.txt"
       gcc_debugging_level="Level 3"
@@ -177,7 +174,6 @@
       gcc_optimization_level="Level 2 for size"
       linker_output_format="bin"
       linker_section_placement_macros="FLASH_PH_START=0x0;FLASH_PH_SIZE=0x40000;RAM_PH_START=0x20000000;RAM_PH_SIZE=0x4000;FLASH_START=0x1c000;FLASH_SIZE=0x10000;RAM_START=0x20002000;RAM_SIZE=0x2000"
-      linker_section_placements_segments="FLASH RX 0x0 0x40000;RAM RWX 0x20000000 0x4000"
       target_loader_erase_all="No" />
     <folder Name="GJ">
       <file file_name="$(GJ_PATH)/gj/base.cpp" />
