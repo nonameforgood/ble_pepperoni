@@ -145,7 +145,7 @@ void SetTurnDataTimer()
   const int32_t delay = endTime - GetUnixtime();
 
   //make sure delay is positive and non zero
-  const int32_t adjustedDelay = Max(delay, 1);
+  const int32_t adjustedDelay = Max<int32_t>(delay, 1);
   
   WHEEL_DBG_SER("Turn timer set to %d(%ds)\n\r", GetUnixtime() + adjustedDelay, adjustedDelay);
 
@@ -347,6 +347,8 @@ DEFINE_COMMAND_NO_ARGS(batt, Command_ReadBattery);
 #define BLE_SCHED_SER(message, ...) 
 //SER("BLE sched %d:" message, GetLocalUnixtime(), ##__VA_ARGS__)
 
+static bool s_enableBLEScheduleOff = true;
+
 void OnBLEScheduleTimer()
 {
   const uint32_t bleenabletime = GJ_CONF_INT32_VALUE(bleenabletime);
@@ -373,7 +375,9 @@ void OnBLEScheduleTimer()
   else 
   {
     BLE_SCHED_SER("midnight\n\r");
-    enable = false;
+
+    //BLE server off is disabled when the module resets from a hard fault
+    enable = s_enableBLEScheduleOff ? false : true;
     timer = bleenabletime - sinceMidnight;   //seconds to bleenabletime
   }
 
@@ -390,7 +394,7 @@ void OnBLEScheduleTimer()
     bleServer.Term();
   }
 
-  timer = Min<uint32_t>(timer, oneDay);
+  timer = Min<uint32_t>(timer, oneHour);
   timer = Max<uint32_t>(timer, 5);
 
   BLE_SCHED_SER("timer:%d\n\r", timer);
@@ -446,6 +450,11 @@ int main(void)
   uint32_t turnDataId = GJ_CONF_INT32_VALUE(wheeldataid);
   turnData.m_collector = InitDataCollector("/turndata", turnDataId, period);
 
+  //disable BLE server off when resetting from hard fault
+  //This is to prevent turning off BLE serv outside of expected window because of desynchronized unixtime 
+  if (IsErrorReset())
+    s_enableBLEScheduleOff = false;
+
   OnBLEScheduleTimer();
 
   SER_COND(period != 60 * 15, "****PERIOD****\n\r");
@@ -456,6 +465,7 @@ int main(void)
       GJEventManager->WaitForEvents(0);
 
       bool bleIdle = bleServer.IsIdle();
+      s_enableBLEScheduleOff |= bleServer.HasClient();  //reenable BLE serv off once a client connects
       bool evIdle = GJEventManager->IsIdle();
       bool const isIdle = bleIdle && evIdle;
       if (isIdle)
