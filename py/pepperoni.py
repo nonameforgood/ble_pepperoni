@@ -339,7 +339,52 @@ async def ReadValues(instance, client):
 
     await SendCommandAndReceive(instance, client, writeChar, "version", 5, OnReceiveCommand)
 
+  elapsedSinceLastBattRead = GetUnixtime() - instance.lastBattRead
+  secondsIn24Hour = 24 * 60 * 60
+  if elapsedSinceLastBattRead >= secondsIn24Hour or instance.testbatt:
+    
+    battData = ""
 
+    def OnReceive(data):
+      nonlocal battData
+      data = str(data) 
+
+      battData += data
+      return len(battData) != 0
+
+    await SendCommandAndReceive(instance, client, writeChar, "batt", 1, OnReceive)
+
+    instance.lastBattRead = GetUnixtime()
+    AddLog("Batt data:" + battData)
+
+    words = battData.split(":")
+
+    if len(words) == 2:
+
+      for i in range(len(words[1])):
+
+        if ord(words[1][i]) < ord('0') or ord(words[1][i]) > ord('9'):
+          words[1] = words[1][0:i]
+          break
+
+
+      deviceName = instance.device.name
+
+      url = instance.server + "/pepperoni/"
+
+      try:
+          words[1] = str(int(words[1]))
+      except ValueError:
+          print('Cannot convert batt level to integer')
+
+      urlParams = {
+        'mod' : deviceName,
+        'batt' : words[1] }
+
+      SendServerRequest(instance.server, "/pepperoni/", urlParams)
+      AddLog("Batt data sent")
+    else:
+      AddLog("WARNING:batt data invalid")
 
   #add 1 to skip the last recorded timestamp
   instance.newestSessionTime = max(maxTime, instance.newestSessionTime)
@@ -459,7 +504,9 @@ async def ReadDevice(instance, name:str):
             advertSessionTime = ReadAdvertData(instance)
             AddLog("Advertized session time {0} Last Read Session time {1}".format(advertSessionTime, instance.newestSessionTime))
 
-            if advertSessionTime != 0 and advertSessionTime != instance.newestSessionTime:
+            needReadFromAdvert = advertSessionTime != 0 and advertSessionTime != instance.newestSessionTime
+            needReadFromDebug = instance.debug
+            if needReadFromAdvert or needReadFromDebug:
               await ReadRecordedSessions(instance)
               UploadReadings(instance)
 
@@ -511,6 +558,7 @@ async def run():
     instance = type('', (), {})()
     instance.newestSessionTime = 0
     instance.oldestSessionTime = 0
+    instance.lastBattRead = 0
     instance.period = 0
     instance.server = "https://devtest.michelvachon.com"
     instance.readingsFilepath = script_dir+"/readings.txt"
@@ -520,6 +568,7 @@ async def run():
     instance.debug = False
     instance.clearAll = False
     instance.sendTestCommand = False
+    instance.testbatt = False
 
     AddLog(argv)
     if len(argv) > 1:
@@ -542,6 +591,10 @@ async def run():
 
         if arg == "sendTestCommand":
           instance.sendTestCommand = True
+
+        if arg == "testbatt":
+          instance.testbatt = True
+          
     
     AddLog("Server:" + instance.server)
     AddLog("Readings:" + instance.readingsFilepath)
