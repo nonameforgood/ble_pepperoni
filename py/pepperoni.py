@@ -26,6 +26,13 @@ def AddDebugLog(s:str):
   if enableDebugLog:
     print(datetime.now(), ":", s)
 
+starttime = datetime.now()
+
+def GetElapsedMillis():
+  r = datetime.now()
+  r = (r - starttime).total_seconds()
+  return r * 1000
+
 def GetUnixtime():
   ct = datetime.now()
   unixtime = time.mktime(ct.timetuple())
@@ -135,7 +142,9 @@ async def SendCommandAndReceive(instance, client, char, cmd, timeout, clientOnRe
   
   done = False
   received = ""
-  lastReceived = GetUnixtime()
+  lastReceived = GetElapsedMillis()
+
+  AddLog("Begin command {0}".format(lastReceived))
 
   def OnReceive(sender, data):
     nonlocal received
@@ -143,24 +152,26 @@ async def SendCommandAndReceive(instance, client, char, cmd, timeout, clientOnRe
     nonlocal lastReceived
     nonlocal clientOnReceive
 
-    lastReceived = GetUnixtime()
+    lastReceived = GetElapsedMillis()
 
     str = bytearray(data).decode("utf-8") 
     received += str
 
     done = clientOnReceive(data)
 
-    AddDebugLog("Received ble data:'{0}'".format(str))
+    AddDebugLog("Received @{1} ble data:'{0}'".format(str, lastReceived))
 
   await client.start_notify(char, OnReceive)
 
   await SendCommand(instance, client, char, cmd)
 
   while done == False:
-    elapsed = GetUnixtime() - lastReceived
+    elapsed = GetElapsedMillis() - lastReceived
     if elapsed >= timeout:
       break
-    await asyncio.sleep(0.1)
+    await asyncio.sleep(0.01)
+
+  AddLog("End command {0}".format(GetElapsedMillis()))
 
   await client.stop_notify(char)
 
@@ -204,7 +215,6 @@ async def SendUnixtime(instance, client):
   svcs = await client.get_services()
 
   writeSrv = None
-  readSrv = None
 
   for service in svcs:
       #AddLog("service {0}".format(service.uuid))
@@ -225,12 +235,10 @@ async def SendUnixtime(instance, client):
   timeout = 100
   await SendCommandAndReceive(instance, client, writeChar, "unixtime {0}".format(GetUnixtime()), timeout, OnReceiveCommand)
 
-
-async def ReadValues(instance, client):
+async def GetWriteChar(client):
   svcs = await client.get_services()
 
   writeSrv = None
-  readSrv = None
 
   for service in svcs:
       #AddLog("service {0}".format(service.uuid))
@@ -242,6 +250,77 @@ async def ReadValues(instance, client):
   for char in writeSrv.characteristics:
     if char.uuid == "0000ee01-0000-1000-8000-00805f9b34fb":
       writeChar = char
+
+  return writeChar
+
+
+async def ReadBatt(instance, client):
+
+  elapsedSinceLastBattRead = GetUnixtime() - instance.lastBattRead
+  secondsIn24Hour = 24 * 60 * 60
+  forceReadBatt = True
+  if elapsedSinceLastBattRead >= secondsIn24Hour or instance.testbatt or forceReadBatt:
+    
+    battData = ""
+
+    def OnReceive(data):
+      nonlocal battData
+      data = str(data) 
+
+      battData += data
+      return False
+
+    writeChar = await GetWriteChar(client)
+
+    await SendCommandAndReceive(instance, client, writeChar, "batt", 300, OnReceive)
+
+    instance.lastBattRead = GetUnixtime()
+    AddLog("Batt data:" + battData)
+
+    words = battData.split(":")
+
+    if len(words) == 2:
+
+      for i in range(len(words[1])):
+
+        if ord(words[1][i]) < ord('0') or ord(words[1][i]) > ord('9'):
+          words[1] = words[1][0:i]
+          break
+
+
+      deviceName = instance.device.name
+
+      url = instance.server + "/pepperoni/"
+
+      try:
+          words[1] = str(int(words[1]))
+      except ValueError:
+          print('Cannot convert batt level to integer')
+
+      urlParams = {
+        'mod' : deviceName,
+        'batt' : words[1] }
+
+      SendServerRequest(instance.server, "/pepperoni/", urlParams)
+      AddLog("Batt data sent")
+    else:
+      AddLog("WARNING:batt data invalid")
+
+async def SendTestCommand(instance, client):
+  if instance.sendTestCommand:
+    AddDebugLog("SendTestCommand")
+    def OnReceiveCommand(data):
+      return True
+
+    writeChar = await GetWriteChar(client)
+
+    await SendCommandAndReceive(instance, client, writeChar, "version", 20, OnReceiveCommand)
+
+
+
+async def ReadDataSessions(instance, client):
+  
+  writeChar = await GetWriteChar(client)
 
   lastReceived = GetUnixtime()
 
@@ -327,67 +406,15 @@ async def ReadValues(instance, client):
   if (elapsedSinceOldest >= secondsIn3Days and instance.oldestSessionTime != 0) and instance.enableClear:
     def OnReceive(data):
       return True #exit stop receiving upon first message
-    await SendCommandAndReceive(instance, client, writeChar, "turndata clear", 1, OnReceive)
+    await SendCommandAndReceive(instance, client, writeChar, "turndata clear", 50, OnReceive)
     #await asyncio.sleep(5.0)
     instance.oldestSessionTime = 0
     AddLog("Data sessions cleared")
 
-  if instance.sendTestCommand:
-    AddDebugLog("SendTestCommand")
-    def OnReceiveCommand(data):
-      return True
-
-    await SendCommandAndReceive(instance, client, writeChar, "version", 5, OnReceiveCommand)
-
-  elapsedSinceLastBattRead = GetUnixtime() - instance.lastBattRead
-  secondsIn24Hour = 24 * 60 * 60
-  if elapsedSinceLastBattRead >= secondsIn24Hour or instance.testbatt:
-    
-    battData = ""
-
-    def OnReceive(data):
-      nonlocal battData
-      data = str(data) 
-
-      battData += data
-      return len(battData) != 0
-
-    await SendCommandAndReceive(instance, client, writeChar, "batt", 1, OnReceive)
-
-    instance.lastBattRead = GetUnixtime()
-    AddLog("Batt data:" + battData)
-
-    words = battData.split(":")
-
-    if len(words) == 2:
-
-      for i in range(len(words[1])):
-
-        if ord(words[1][i]) < ord('0') or ord(words[1][i]) > ord('9'):
-          words[1] = words[1][0:i]
-          break
-
-
-      deviceName = instance.device.name
-
-      url = instance.server + "/pepperoni/"
-
-      try:
-          words[1] = str(int(words[1]))
-      except ValueError:
-          print('Cannot convert batt level to integer')
-
-      urlParams = {
-        'mod' : deviceName,
-        'batt' : words[1] }
-
-      SendServerRequest(instance.server, "/pepperoni/", urlParams)
-      AddLog("Batt data sent")
-    else:
-      AddLog("WARNING:batt data invalid")
-
+  
   #add 1 to skip the last recorded timestamp
   instance.newestSessionTime = max(maxTime, instance.newestSessionTime)
+
 
 def ReadAdvertData(instance):
   AddDebugLog("Reading advert data...")
@@ -410,7 +437,7 @@ def ReadAdvertData(instance):
 
   return unixtime
 
-async def ReadRecordedSessions(instance):
+async def ConnectAndTransfer(instance):
   exceptionCount = 0
   while True:
       if exceptionCount > 5:
@@ -432,10 +459,11 @@ async def ReadRecordedSessions(instance):
           async with BleakClient(instance.device) as client:
             await client.is_connected()
             AddLog("Connected")
-            #todo: set uc module time
 
             await SendUnixtime(instance, client)
-            await ReadValues(instance, client)
+            await ReadDataSessions(instance, client)
+            await ReadBatt(instance, client)
+            await SendTestCommand(instance, client)
             await client.disconnect()
             client = None
             #instance.lastSessionRead = time.time()
@@ -446,7 +474,7 @@ async def ReadRecordedSessions(instance):
       except Exception as e:
           logger = logging.getLogger(__name__)
           tb = traceback.format_exc()
-          logger.warning("exception in ReadRecordedSessions for {2} : {0} {1}".format(e, tb, instance.id))
+          logger.warning("exception in ConnectAndTransfer for {2} : {0} {1}".format(e, tb, instance.id))
           exceptionCount += 1
           #exit()
 
@@ -504,20 +532,28 @@ async def ReadDevice(instance, name:str):
             advertSessionTime = ReadAdvertData(instance)
             AddLog("Advertized session time {0} Last Read Session time {1}".format(advertSessionTime, instance.newestSessionTime))
 
+            secondsIn24Hour = 24 * 60 * 60
+
             needReadFromAdvert = advertSessionTime != 0 and advertSessionTime != instance.newestSessionTime
+            needReadBatt = (GetUnixtime() - instance.lastBattRead) > secondsIn24Hour
             needReadFromDebug = instance.debug
-            if needReadFromAdvert or needReadFromDebug:
-              await ReadRecordedSessions(instance)
+            if needReadFromAdvert or needReadBatt or needReadFromDebug:
+              await ConnectAndTransfer(instance)
               UploadReadings(instance)
+
+              if instance.newestSessionTime == 0:
+                #module can return no data even when advert time is non 0
+                #this happens right after a data clear
+                instance.newestSessionTime = advertSessionTime
 
             instance.device = None  #advert data not refreshed otherwise
 
           timeout = 0
 
           if instance.period != 0 and instance.newestSessionTime != 0:
-            #try to wait until the next expected data session
+            #try to wait until the next possible data session
             AddDebugLog("new {0} period {1}".format(instance.newestSessionTime, instance.period))
-            nextExpectedDataTime = instance.newestSessionTime + instance.period * 16
+            nextExpectedDataTime = instance.newestSessionTime + instance.period * 16 * 2
             delay = 60 * 1 #give module some time to write data
             timeout = nextExpectedDataTime - GetUnixtime() + delay
             #timeout = max(timeout, 0) #next data might be past due, happens when module had no data to send
@@ -594,7 +630,14 @@ async def run():
 
         if arg == "testbatt":
           instance.testbatt = True
-          
+
+    if instance.debug:
+
+      AddDebugLog(GetElapsedMillis())
+      await asyncio.sleep(0.2)
+      AddDebugLog(GetElapsedMillis())
+      
+      #exit() 
     
     AddLog("Server:" + instance.server)
     AddLog("Readings:" + instance.readingsFilepath)
