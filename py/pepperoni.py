@@ -410,11 +410,9 @@ async def ReadDataSessions(instance, client):
     #await asyncio.sleep(5.0)
     instance.oldestSessionTime = 0
     AddLog("Data sessions cleared")
-
-  
+    
   #add 1 to skip the last recorded timestamp
   instance.newestSessionTime = max(maxTime, instance.newestSessionTime)
-
 
 def ReadAdvertData(instance):
   AddDebugLog("Reading advert data...")
@@ -539,6 +537,7 @@ async def ReadDevice(instance, name:str):
             needReadFromDebug = instance.debug
             if needReadFromAdvert or needReadBatt or needReadFromDebug:
               await ConnectAndTransfer(instance)
+
               UploadReadings(instance)
 
               if instance.newestSessionTime == 0:
