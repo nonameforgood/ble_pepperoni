@@ -109,6 +109,8 @@ struct TurnData
 
   DigitalSensor m_sensor;
   DigitalSensorCB m_sensorCB;
+
+  bool m_timerSet = false;
 } turnData;
 
 TurnData::TurnData()
@@ -121,11 +123,11 @@ TurnData::TurnData()
 void OnTurnDataTimer();
 void SetTurnDataTimer();
 
-#define WHEEL_DBG_SER(format, ...) { const bool wheeldbg = GJ_CONF_INT32_VALUE(wheeldbg) != 0; if (wheeldbg) { SER(format, ##__VA_ARGS__); } } 
+#define WHEEL_DBG_SER(level, format, ...) { const bool wheeldbg = GJ_CONF_INT32_VALUE(wheeldbg) >= (level); if (wheeldbg) { SER(format, ##__VA_ARGS__); } } 
 
 void WriteTurnData(uint32_t time)
 {
-  WHEEL_DBG_SER("WriteTurnData\n\r");
+  WHEEL_DBG_SER(1, "WriteTurnData\n\r");
   const int32_t sessionTime = GetSessionTime(*turnData.m_collector);
         
   WriteDataSession(*turnData.m_collector);
@@ -135,7 +137,7 @@ void WriteTurnData(uint32_t time)
   s_manufData.m_lastSessionUnixtime = sessionTime;
   RefreshManufData();
 
-  SetTurnDataTimer();
+  turnData.m_timerSet = false;
 }
 
 void SetTurnDataTimer()
@@ -147,15 +149,17 @@ void SetTurnDataTimer()
   //make sure delay is positive and non zero
   const int32_t adjustedDelay = Max<int32_t>(delay, 1);
   
-  WHEEL_DBG_SER("Turn timer set to %d(%ds)\n\r", GetUnixtime() + adjustedDelay, adjustedDelay);
+  WHEEL_DBG_SER(1, "Turn timer set to %d(%ds)\n\r", GetUnixtime() + adjustedDelay, adjustedDelay);
 
   const int64_t secsToMicros = 1000000;
   GJEventManager->DelayAdd(OnTurnDataTimer, adjustedDelay * secsToMicros);
+
+  turnData.m_timerSet = true;
 }
 
 void OnTurnDataTimer()
 {
-  WHEEL_DBG_SER("OnTurnDataTimer\n\r");
+  WHEEL_DBG_SER(1, "OnTurnDataTimer\n\r");
 
   const uint32_t time = GetUnixtime();
   const bool isSessionExpired = IsExpired(*turnData.m_collector, time);
@@ -173,6 +177,11 @@ void OnWheelTurn(DigitalSensor &sensor, uint32_t val)
   {
     WriteTurnData(time);
   }
+
+  if (turnData.m_timerSet == false)
+  {
+    SetTurnDataTimer();
+  }
   
   if (val == 0)
   {
@@ -181,11 +190,11 @@ void OnWheelTurn(DigitalSensor &sensor, uint32_t val)
         
     SER_COND(!dataAdded, "ERROR:Turn data not added\n\r");
 
-    WHEEL_DBG_SER("Wheel turn (time:%d)\n\r", time);
+    WHEEL_DBG_SER(2, "Wheel turn (time:%d)\n\r", time);
   }
 }
 
-static volatile uint32_t nextTrigger = 300;
+static volatile uint32_t nextTrigger = 15;
 void TriggerOnWheelTurn()
 {
   OnWheelTurn(turnData.m_sensor, 0);
