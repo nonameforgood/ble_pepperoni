@@ -420,6 +420,8 @@ int main(void)
   REFERENCE_COMMAND(version);
   REFERENCE_COMMAND(turndata);
   REFERENCE_COMMAND(batt);
+  
+  InitCrashDataCommand();
 
   Delay(100);
 
