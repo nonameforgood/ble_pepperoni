@@ -102,6 +102,8 @@ void RefreshManufData()
     bleServer.SetAdvManufData(&s_manufData, sizeof(s_manufData));
 }
 
+#define TD_ERR_NOT_ADDED 1001
+
 struct TurnData
 {
   TurnData();
@@ -111,6 +113,8 @@ struct TurnData
   DigitalSensorCB m_sensorCB;
 
   bool m_timerSet = false;
+  uint32_t m_NextTimer = 0;
+  uint32_t m_LastError = 0;
 } turnData;
 
 TurnData::TurnData()
@@ -151,6 +155,8 @@ void SetTurnDataTimer()
   
   WHEEL_DBG_SER(1, "Turn timer set to %d(%ds)\n\r", GetUnixtime() + adjustedDelay, adjustedDelay);
 
+  turnData.m_NextTimer = GetUnixtime() + adjustedDelay;
+
   const int64_t secsToMicros = 1000000;
   GJEventManager->DelayAdd(OnTurnDataTimer, adjustedDelay * secsToMicros);
 
@@ -189,6 +195,9 @@ void OnWheelTurn(DigitalSensor &sensor, uint32_t val)
     const bool dataAdded = AddData(*turnData.m_collector, time, turnCount);
         
     SER_COND(!dataAdded, "ERROR:Turn data not added\n\r");
+
+    if (!dataAdded)
+      turnData.m_LastError = TD_ERR_NOT_ADDED;
 
     WHEEL_DBG_SER(2, "Wheel turn (time:%d)\n\r", time);
   }
@@ -324,6 +333,16 @@ void Command_TurnDataWriteDbg(const CommandInfo &commandInfo)
   SER("Debug Data written\n\r");
 }
 
+void Command_TurnDataInfo(const CommandInfo &commandInfo)
+{
+  const uint32_t time = GetUnixtime();
+  const bool isSessionExpired = IsExpired(*turnData.m_collector, time);
+  
+  SER("Next timer set:%d (%d)\n", turnData.m_TimerSet, turnData.m_NextTimer);
+  SER("Session expired:%d\n", isSessionExpired);
+  SER("Last error:%d\n", turnData.m_LastError);
+}
+
 void Command_turndata(const char *command)
 {
   static constexpr const char * const s_argsName[] = {
@@ -331,7 +350,8 @@ void Command_turndata(const char *command)
     "active",
     "clear",
     "debugtrigger",
-    "writedbg"
+    "writedbg",
+    "info"
   };
 
   static void (*const s_argsFuncs[])(const CommandInfo &commandInfo){
@@ -340,6 +360,7 @@ void Command_turndata(const char *command)
     Command_TurnDataClear,
     Command_TurnDataDebugTrigger,
     Command_TurnDataWriteDbg,
+    Command_TurnDataInfo,
     };
 
   const SubCommands subCommands = {5, s_argsName, s_argsFuncs};
