@@ -514,10 +514,9 @@ int main(void)
   uint32_t turnDataId = GJ_CONF_INT32_VALUE(wheeldataid);
   turnData.m_collector = InitDataCollector("/turndata", turnDataId, period);
 
-  //disable BLE server off when resetting from hard fault
+  //disable BLE server off when resetting
   //This is to prevent turning off BLE serv outside of expected window because of desynchronized unixtime 
-  if (IsErrorReset())
-    s_enableBLEScheduleOff = false;
+  s_enableBLEScheduleOff = false;
 
   OnBLEScheduleTimer();
 
